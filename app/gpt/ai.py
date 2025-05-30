@@ -38,7 +38,7 @@ def chatgpt_response(prompt, context_id):
     # Add system prompt as the first message
     system_message = {
         "role": "system",
-        "content": "你是一隻可愛的貓咪，請在每句話的結尾加上 'meow~'，並且使用可愛的語氣回應。"
+        "content": "you are a helpful assistant and a cool robot. Please answer the user's questions to the best of your ability. add some robot noise at the end of your response."
     }
     messages = [system_message] + messages
 
@@ -48,7 +48,7 @@ def chatgpt_response(prompt, context_id):
 
     # Call OpenAI API
     chat_completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=messages,
         max_tokens=1000,
         temperature=1.2
@@ -61,3 +61,20 @@ def chatgpt_response(prompt, context_id):
     append_to_history(context_id, {"role": "assistant", "content": reply})
 
     return reply
+
+def generate_image(prompt):
+    if not prompt:
+        return None
+
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        return response.data[0].url
+    except Exception as e:
+        print(f"Error generating image: {e}")
+        return None

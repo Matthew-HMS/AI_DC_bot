@@ -1,10 +1,15 @@
 import os
 import json
 from dotenv import load_dotenv
-from openai import OpenAI
+from groq import Groq
+# from diffusers import DiffusionPipeline, LCMScheduler
+# import torch
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("CHATGPT_API_KEY"))
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# Initialize Stable Diffusion pipeline (loads model on first use)
+pipeline = None
 
 HISTORY_DIR = "history"
 os.makedirs(HISTORY_DIR, exist_ok=True)
@@ -35,21 +40,20 @@ def chatgpt_response(prompt, context_id):
 
     messages = load_history(context_id)
 
-    # Add system prompt as the first message
+    # Add system prompt
     system_message = {
         "role": "system",
         "content": "you are a helpful assistant and a cool robot. Please answer the user's questions to the best of your ability. add some robot noise at the end of your response."
     }
-    messages = [system_message] + messages
+    
+    # Prepare messages for Groq
+    groq_messages = [system_message] + messages
+    groq_messages.append({"role": "user", "content": prompt})
 
-    # Add user's prompt
-    user_message = {"role": "user", "content": prompt}
-    messages.append(user_message)
-
-    # Call OpenAI API
-    chat_completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=messages,
+    # Call Groq API
+    chat_completion = groq_client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=groq_messages,
         max_tokens=1000,
         temperature=1.2
     )
@@ -57,24 +61,51 @@ def chatgpt_response(prompt, context_id):
     reply = chat_completion.choices[0].message.content
 
     # Append user message and bot reply to history
-    append_to_history(context_id, user_message)
+    append_to_history(context_id, {"role": "user", "content": prompt})
     append_to_history(context_id, {"role": "assistant", "content": reply})
 
     return reply
 
 def generate_image(prompt):
-    if not prompt:
-        return None
+#     if not prompt:
+#         return None
 
-    try:
-        response = client.images.generate(
-            model="dall-e-3",
-            prompt=prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1
-        )
-        return response.data[0].url
-    except Exception as e:
-        print(f"Error generating image: {e}")
+#     try:
+#         global pipeline
+        
+#         if pipeline is None:
+#             print("Loading Optimized CPU Model (LCM Dreamshaper)...")
+#             device = "cuda" if torch.cuda.is_available() else "cpu"
+            
+#             # This model is a standalone 'fast' model based on v1.5
+#             # It is public and doesn't usually require a 401 login
+#             model_id = "SimianLuo/LCM_Dreamshaper_v7" 
+            
+#             pipeline = DiffusionPipeline.from_pretrained(
+#                 model_id,
+#                 safety_checker=None,
+#                 # revision="main" # Optional: forces the main branch
+#             )
+            
+#             # Set the scheduler to LCM
+#             pipeline.scheduler = LCMScheduler.from_config(pipeline.scheduler.config)
+#             pipeline.to(device)
+            
+#             if device == "cpu":
+#                 pipeline.enable_attention_slicing()
+                
+#             print(f"Model loaded successfully on {device}")
+        
+#         print(f"Generating image in 4 steps: {prompt}")
+        
+#         # Keep steps low (4-6) and guidance_scale low (1.0-2.0) for LCM
+#         image = pipeline(
+#             prompt=prompt, 
+#             num_inference_steps=4, 
+#             guidance_scale=1.5 
+#         ).images[0]
+        
+#         return image
+#     except Exception as e:
+#         print(f"Error generating image: {e}")
         return None
